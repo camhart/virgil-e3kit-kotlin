@@ -33,6 +33,7 @@
 
 package com.virgilsecurity.android.common.worker
 
+import com.virgilsecurity.android.common.CardFilterHelper
 import com.virgilsecurity.android.common.exception.TemporaryChannelException
 import com.virgilsecurity.android.common.manager.LookupManager
 import com.virgilsecurity.android.common.manager.TempChannelManager
@@ -58,7 +59,7 @@ internal class TempChannelWorker(
                         )
                     }
 
-                    val result = lookupManager.lookupCards(listOf(identity), checkResult = false)
+                    val result = lookupManager.lookupCards(listOf(identity), checkResult = false, cardFilter = CardFilterHelper::AcceptAll)
                     if (result.isNotEmpty()) {
                         throw TemporaryChannelException(
                             TemporaryChannelException.Description.USER_IS_REGISTERED

@@ -33,6 +33,7 @@
 
 package com.virgilsecurity.android.common.manager
 
+import com.virgilsecurity.android.common.CardFilterHelper
 import com.virgilsecurity.android.common.exception.ServiceErrorCodes
 import com.virgilsecurity.android.common.exception.TemporaryChannelException
 import com.virgilsecurity.android.common.model.temporary.TemporaryChannel
@@ -106,7 +107,7 @@ internal class TempChannelManager(
             publicKey = tempKeyPair.publicKey
             privateKey = selfKeyPair.privateKey
         } else {
-            val card = lookupManager.lookupCard(identity)
+            val card = lookupManager.lookupCard(identity, false, CardFilterHelper::AcceptAll)
             val tempKeyPair = cloudStorage.retrieve(identity, this.identity)
             localStorage.store(tempKeyPair.privateKey, identity)
 

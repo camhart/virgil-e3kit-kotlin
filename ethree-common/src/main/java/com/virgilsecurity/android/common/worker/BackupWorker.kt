@@ -33,6 +33,7 @@
 
 package com.virgilsecurity.android.common.worker
 
+import com.virgilsecurity.android.common.CardFilterHelper
 import com.virgilsecurity.android.common.EThreeCore
 import com.virgilsecurity.android.common.exception.EThreeException
 import com.virgilsecurity.android.common.manager.LookupManager
@@ -85,7 +86,7 @@ internal class BackupWorker internal constructor(
                                           exception)
                 }
 
-                val card = lookupManager.lookupCard(this@BackupWorker.identity)
+                val card = lookupManager.lookupCard(this@BackupWorker.identity, false, CardFilterHelper::AcceptAccount)
 
                 localKeyStorage.store(entry.data.toData())
 

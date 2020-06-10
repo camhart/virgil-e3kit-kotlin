@@ -33,6 +33,7 @@
 
 package com.virgilsecurity.android.common.worker
 
+import com.virgilsecurity.android.common.CardFilterHelper
 import com.virgilsecurity.android.common.exception.FindUsersException
 import com.virgilsecurity.android.common.manager.LookupManager
 import com.virgilsecurity.android.common.model.FindUsersResult
@@ -68,17 +69,18 @@ internal class SearchWorker internal constructor(
 
     internal fun findUsers(identities: List<String>,
                            forceReload: Boolean = false,
-                           checkResult: Boolean = true): Result<FindUsersResult> =
+                           checkResult: Boolean = true,
+                           cardFilter: (card: Card) -> Boolean): Result<FindUsersResult> =
             object : Result<FindUsersResult> {
                 override fun get(): FindUsersResult {
-                    return lookupManager.lookupCards(identities, forceReload, checkResult)
+                    return lookupManager.lookupCards(identities, forceReload, checkResult, cardFilter)
                 }
             }
 
     internal fun findUser(identity: String,
-                          forceReload: Boolean = false): Result<Card> = object : Result<Card> {
+                          forceReload: Boolean = false, cardFilter: (card: Card) -> Boolean): Result<Card> = object : Result<Card> {
         override fun get(): Card {
-            return lookupManager.lookupCard(identity, forceReload)
+            return lookupManager.lookupCard(identity, forceReload, cardFilter)
         }
     }
 
@@ -90,15 +92,15 @@ internal class SearchWorker internal constructor(
 
     @Deprecated("Use findUser instead.")
     internal fun lookupPublicKey(identity: String): Result<LookupResult> =
-            lookupPublicKeys(listOf(identity))
+            lookupPublicKeys(listOf(identity), CardFilterHelper::AcceptAll)
 
     @Deprecated("Use findUsers instead.")
-    internal fun lookupPublicKeys(identities: List<String>): Result<LookupResult> =
+    internal fun lookupPublicKeys(identities: List<String>, cardFilter: (card: Card) -> Boolean): Result<LookupResult> =
             object : Result<LookupResult> {
                 override fun get(): LookupResult {
                     require(identities.isNotEmpty()) { "\'identities\' should not be empty" }
 
-                    val cards = findUsers(identities, forceReload = true, checkResult = true).get()
+                    val cards = findUsers(identities, forceReload = true, checkResult = true, cardFilter = cardFilter).get()
                     return cards.mapValues { it.component2().publicKey }
                 }
             }

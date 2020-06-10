@@ -33,6 +33,7 @@
 
 package com.virgilsecurity.android.common.model
 
+import com.virgilsecurity.android.common.CardFilterHelper
 import com.virgilsecurity.android.common.exception.*
 import com.virgilsecurity.android.common.manager.GroupManager
 import com.virgilsecurity.android.common.manager.LookupManager
@@ -236,7 +237,7 @@ class Group internal constructor(
     fun update(): Completable = object : Completable {
         override fun execute() {
             val sessionId = this@Group.session.sessionId.toData()
-            val card = lookupManager.lookupCard(this@Group.initiator)
+            val card = lookupManager.lookupCard(this@Group.initiator, false, CardFilterHelper::AcceptAll)
             val group = groupManager.pull(sessionId, card)
             this@Group.session = group.session
             this@Group.participants = group.participants
@@ -317,7 +318,8 @@ class Group internal constructor(
 
             val newSetLookup = lookupManager.lookupCards(newSet.toList(),
                                                          forceReload = false,
-                                                         checkResult = true)
+                                                         checkResult = true,
+                                                         cardFilter = CardFilterHelper::AcceptAll)
             addNewTicket(newSetLookup)
 
             val removedSet = oldSet.subtract(newSet)

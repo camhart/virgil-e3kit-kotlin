@@ -33,6 +33,7 @@
 
 package com.virgilsecurity.android.common.manager
 
+import com.virgilsecurity.android.common.CardFilterHelper
 import com.virgilsecurity.android.common.callback.OnKeyChangedCallback
 import com.virgilsecurity.android.common.exception.EThreeException
 import com.virgilsecurity.android.common.exception.FindUsersException
@@ -74,7 +75,7 @@ internal class LookupManager internal constructor(
 
                     onKeyChangedCallback?.keyChanged(outdatedCard.identity)
 
-                    val newCard = lookupCard(outdatedCard.identity, true)
+                    val newCard = lookupCard(outdatedCard.identity, true, CardFilterHelper::AcceptAll)
 
                     cardStorage.storeCard(newCard)
 
@@ -123,7 +124,8 @@ internal class LookupManager internal constructor(
 
     internal fun lookupCards(identities: List<String>,
                              forceReload: Boolean = false,
-                             checkResult: Boolean): FindUsersResult {
+                             checkResult: Boolean,
+                             cardFilter: (card: Card) -> Boolean): FindUsersResult {
         if (identities.isEmpty())
             throw EThreeException(EThreeException.Description.MISSING_IDENTITIES)
 
@@ -146,6 +148,9 @@ internal class LookupManager internal constructor(
                 val cards = cardManager.searchCards(identitiesChunk)
 
                 for (card in cards) {
+                    if(!cardFilter(card)) {
+                        continue
+                    }
                     if (result[card.identity] != null) {
                         throw FindUsersException(FindUsersException.Description.DUPLICATE_CARDS)
                     }
@@ -163,10 +168,10 @@ internal class LookupManager internal constructor(
         return FindUsersResult(result)
     }
 
-    internal fun lookupCard(identity: String, forceReload: Boolean = false): Card {
+    internal fun lookupCard(identity: String, forceReload: Boolean = false, cardFilter: (card: Card) -> Boolean): Card {
         require(identity.isNotEmpty()) { "\'identity\' should not be empty" }
 
-        val cards = lookupCards(listOf(identity), forceReload, true)
+        val cards = lookupCards(listOf(identity), forceReload, true, cardFilter)
 
         return cards[identity]
                ?: throw FindUsersException(FindUsersException.Description.CARD_WAS_NOT_FOUND)

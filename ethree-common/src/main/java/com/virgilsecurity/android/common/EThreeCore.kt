@@ -322,8 +322,9 @@ abstract class EThreeCore {
      */
     @JvmOverloads fun findUsers(identities: List<String>,
                                 forceReload: Boolean = false,
-                                checkResult: Boolean = true): Result<FindUsersResult> =
-            searchWorker.findUsers(identities, forceReload, checkResult)
+                                checkResult: Boolean = true,
+                                cardFilter: (card: Card) -> Boolean): Result<FindUsersResult> =
+            searchWorker.findUsers(identities, forceReload, checkResult, cardFilter)
 
     /**
      * Retrieves user Card from the Virgil Cloud or local storage if exists.
@@ -338,8 +339,8 @@ abstract class EThreeCore {
      * @throws FindUsersException(FindUsersException.Description.CARD_WAS_NOT_FOUND) If card
      * duplicates was found or at least one card was not found.
      */
-    @JvmOverloads fun findUser(identity: String, forceReload: Boolean = false): Result<Card> =
-            searchWorker.findUser(identity, forceReload)
+    @JvmOverloads fun findUser(identity: String, forceReload: Boolean = false, cardFilter: (card: Card) -> Boolean): Result<Card> =
+            searchWorker.findUser(identity, forceReload, cardFilter)
 
     /**
      * Updates local cached cards.
@@ -379,8 +380,8 @@ abstract class EThreeCore {
      */
     @Deprecated("Check 'replace with' section.",
                 ReplaceWith("findUsers(List<String>)"))
-    fun lookupPublicKeys(identities: List<String>): Result<LookupResult> =
-            searchWorker.lookupPublicKeys(identities)
+    fun lookupPublicKeys(identities: List<String>, cardFilter: (card: Card) -> Boolean): Result<LookupResult> =
+            searchWorker.lookupPublicKeys(identities, cardFilter)
 
     /**
      * Encrypts the user's private key using the user's [password] and backs up the encrypted
