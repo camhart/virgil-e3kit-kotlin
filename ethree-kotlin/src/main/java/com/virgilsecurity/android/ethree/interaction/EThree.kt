@@ -53,6 +53,7 @@ import com.virgilsecurity.sdk.storage.KeyStorage
  */
 class EThree
 @JvmOverloads constructor(
+        keyPrefix: String,
         identity: String,
         tokenCallback: OnGetTokenCallback,
         context: Context,
@@ -60,7 +61,7 @@ class EThree
         keyPairType: KeyPairType = Defaults.keyPairType,
         enableRatchet: Boolean = Defaults.enableRatchet,
         keyRotationInterval: TimeSpan = Defaults.keyRotationInterval
-) : EThreeCore(identity,
+) : EThreeCore(keyPrefix, identity,
                tokenCallback,
                keyChangedCallback,
                keyPairType,
@@ -77,6 +78,7 @@ class EThree
     }
 
     constructor(params: com.virgilsecurity.android.common.model.EThreeParams) : this(
+        params.keyPrefix,
         params.identity,
         params.tokenCallback,
         params.context,
@@ -86,6 +88,7 @@ class EThree
         params.keyRotationInterval)
 
     constructor(params: com.virgilsecurity.android.common.model.java.EThreeParams) : this(
+        params.keyPrefix,
         params.identity,
         params.tokenCallback,
         params.context,
@@ -95,6 +98,7 @@ class EThree
         params.keyRotationInterval)
 
     @JvmOverloads constructor(
+            keyPrefix: String,
             identity: String,
             tokenStringCallback: () -> String,
             context: Context,
@@ -102,7 +106,7 @@ class EThree
             keyPairType: KeyPairType = Defaults.keyPairType,
             enableRatchet: Boolean = Defaults.enableRatchet,
             keyRotationInterval: TimeSpan = Defaults.keyRotationInterval
-    ) : this(identity,
+    ) : this(keyPrefix, identity,
              object : OnGetTokenCallback {
                  override fun onGetToken(): String {
                      return tokenStringCallback()
@@ -141,7 +145,7 @@ class EThree
                         // initialize EThree. We have caching JWT provider, so sequential calls
                         // won't take much time, as token will be cached after first call.
                         val token = tokenProvider.getToken(NO_CONTEXT)
-                        val ethree = EThree(token.identity,
+                        val ethree = EThree("bogus-prefix", token.identity,
                                             onGetTokenCallback,
                                             context,
                                             keyChangedCallback)

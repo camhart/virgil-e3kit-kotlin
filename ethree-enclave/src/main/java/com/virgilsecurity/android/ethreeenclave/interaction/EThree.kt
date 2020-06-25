@@ -56,6 +56,7 @@ import com.virgilsecurity.sdk.storage.KeyStorage
  */
 class EThree
 @JvmOverloads constructor(
+        identityPrefix: String,
         identity: String,
         tokenCallback: OnGetTokenCallback,
         context: Context,
@@ -66,7 +67,8 @@ class EThree
         keyPairType: KeyPairType = Defaults.keyPairType,
         enableRatchet: Boolean = Defaults.enableRatchet,
         keyRotationInterval: TimeSpan = Defaults.keyRotationInterval
-) : EThreeCore(identity,
+) : EThreeCore(identityPrefix,
+               identity,
                tokenCallback,
                keyChangedCallback,
                keyPairType,
@@ -114,6 +116,7 @@ class EThree
     }
 
     constructor(params: com.virgilsecurity.android.ethreeenclave.interaction.model.EThreeParams) : this(
+        params.keyPrefix,
         params.identity,
         params.tokenCallback,
         params.context,
@@ -126,6 +129,7 @@ class EThree
         params.keyRotationInterval)
 
     constructor(params: com.virgilsecurity.android.ethreeenclave.interaction.model.java.EThreeParams) : this(
+        params.keyPrefix,
         params.identity,
         params.tokenCallback,
         params.context,
@@ -138,6 +142,7 @@ class EThree
         params.keyRotationInterval)
 
     @JvmOverloads constructor(
+            keyPrefix: String,
             identity: String,
             tokenCallback: () -> String,
             context: Context,
@@ -148,7 +153,7 @@ class EThree
             keyPairType: KeyPairType = Defaults.keyPairType,
             enableRatchet: Boolean = Defaults.enableRatchet,
             keyRotationInterval: TimeSpan = Defaults.keyRotationInterval
-    ) : this(identity,
+    ) : this(keyPrefix, identity,
              object : OnGetTokenCallback {
                  override fun onGetToken(): String {
                      return tokenCallback()
@@ -198,7 +203,7 @@ class EThree
                 // won't take much time, as token will be cached after first call.
                 val token = tokenProvider.getToken(NO_CONTEXT)
 
-                val eThree = EThree(token.identity,
+                val eThree = EThree("bogus-prefix", token.identity,
                                     onGetTokenCallback,
                                     context,
                                     alias,

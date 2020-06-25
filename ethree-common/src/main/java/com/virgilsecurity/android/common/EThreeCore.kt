@@ -92,6 +92,7 @@ import java.util.logging.Logger
  */
 abstract class EThreeCore {
 
+    private lateinit var keyPrefix: String
     private val rootPath: String
 
     private var accessTokenProvider: AccessTokenProvider
@@ -127,7 +128,8 @@ abstract class EThreeCore {
     val cardManager: CardManager
     val identity: String
 
-    protected constructor(identity: String,
+    protected constructor(keyPrefix: String,
+                          identity: String,
                           getTokenCallback: OnGetTokenCallback,
                           keyChangedCallback: OnKeyChangedCallback?,
                           keyPairType: KeyPairType,
@@ -135,6 +137,7 @@ abstract class EThreeCore {
                           keyRotationInterval: TimeSpan,
                           context: Context) {
 
+        this.keyPrefix = keyPrefix;
         this.identity = identity
 
         val cardCrypto = VirgilCardCrypto(crypto)
@@ -169,7 +172,7 @@ abstract class EThreeCore {
      * is available only after child object of `EThreeCore` is constructed.
      */
     protected fun initializeCore() {
-        this.localKeyStorage = LocalKeyStorage(identity, keyStorage, crypto)
+        this.localKeyStorage = LocalKeyStorage(identity, keyStorage, crypto, keyPrefix)
         this.cloudRatchetStorage = CloudRatchetStorage(accessTokenProvider, localKeyStorage)
 
         this.authorizationWorker = AuthorizationWorker(cardManager,
@@ -227,7 +230,7 @@ abstract class EThreeCore {
      */
     @Synchronized
     @JvmOverloads
-    fun register(keyPair: VirgilKeyPair? = null): Completable = authorizationWorker.register(keyPair)
+    fun register(keyPair: VirgilKeyPair? = null, cardFilter: (card: Card) -> Boolean, additionalData: Map<String, String>, onSuccess: (card: Card) -> Unit): Completable = authorizationWorker.register(keyPair, cardFilter, additionalData, onSuccess)
 
     /**
      * Revokes the public key for current *identity* in Virgil's Cards Service. After this operation
@@ -251,7 +254,7 @@ abstract class EThreeCore {
      * @throws EThreeException(EThreeException.Description.USER_IS_NOT_REGISTERED)
      * @throws CryptoException
      */
-    @Synchronized fun rotatePrivateKey(): Completable = authorizationWorker.rotatePrivateKey()
+    @Synchronized fun rotatePrivateKey(additionalData : Map<String, String>, cardFilter: (card: Card) -> Boolean, onSuccess: (card: Card) -> Unit): Completable = authorizationWorker.rotatePrivateKey(additionalData, cardFilter, onSuccess)
 
     /**
      * Checks whether the private key is present in the local storage of current device.
@@ -417,8 +420,8 @@ abstract class EThreeCore {
      * @throws EThreeException(EThreeException.Description.PRIVATE_KEY_EXISTS) If private key
      * already present on the device locally.
      */
-    fun restorePrivateKey(password: String): Completable =
-            backupWorker.restorePrivateKey(password)
+    fun restorePrivateKey(password: String, cardFilter: (card : Card) -> Boolean, onSuccess: (card: Card) -> Unit): Completable =
+            backupWorker.restorePrivateKey(password, cardFilter, onSuccess)
 
     /**
      * Changes the password on a backed-up private key.
@@ -765,8 +768,8 @@ abstract class EThreeCore {
      * @throws EThreeException(EThreeException.Description.MISSING_PUBLIC_KEY)
      * @throws rethrows [VirgilCrypto.authEncrypt]
      */
-    fun authEncrypt(data: Data, user: Card): Data =
-            authEncryptWorker.authEncrypt(data, user)
+    fun authEncrypt(data: Data, user: Card, includeSelf: Boolean): Data =
+            authEncryptWorker.authEncrypt(data, user, includeSelf)
 
     /**
      * Signs then encrypts string (and signature) for user.
@@ -787,8 +790,8 @@ abstract class EThreeCore {
      * @throws EThreeException(EThreeException.Description.STR_TO_DATA_FAILED)
      * @throws rethrows [VirgilCrypto.authEncrypt]
      */
-    fun authEncrypt(text: String, user: Card): String =
-            authEncryptWorker.authEncrypt(text, user)
+    fun authEncrypt(text: String, user: Card, includeSelf: Boolean = true): String =
+            authEncryptWorker.authEncrypt(text, user, includeSelf)
 
     /**
      * Decrypts data and signature and verifies signature of sender.
@@ -886,8 +889,8 @@ abstract class EThreeCore {
      * @throws EThreeException(EThreeException.Description.STR_TO_DATA_FAILED)
      * @throws rethrows [VirgilCrypto.authEncrypt]
      */
-    @JvmOverloads fun authEncrypt(text: String, users: FindUsersResult? = null): String =
-            authEncryptWorker.authEncrypt(text, users)
+    @JvmOverloads fun authEncrypt(text: String, users: FindUsersResult? = null, includeSelf: Boolean = true): String =
+            authEncryptWorker.authEncrypt(text, users, includeSelf)
 
     /**
      * Signs then encrypts string (and signature) for group of users.
@@ -910,8 +913,8 @@ abstract class EThreeCore {
      * @throws EThreeException(EThreeException.Description.MISSING_PUBLIC_KEY)
      * @throws rethrows [VirgilCrypto.authEncrypt]
      */
-    @JvmOverloads fun authEncrypt(data: Data, users: FindUsersResult? = null): Data =
-            authEncryptWorker.authEncrypt(data, users)
+    @JvmOverloads fun authEncrypt(data: Data, users: FindUsersResult? = null, includeSelf: Boolean = true): Data =
+            authEncryptWorker.authEncrypt(data, users, includeSelf)
 
     /**
      * Signs then encrypts stream and signature for user.
@@ -1262,24 +1265,28 @@ abstract class EThreeCore {
     }
 
     internal fun publishCardThenSaveLocal(keyPair: VirgilKeyPair? = null,
-                                          previousCardId: String? = null) {
+                                          previousCardId: String? = null,
+                                          additionalData: Map<String, String>? = null) : Card {
         val virgilKeyPair = keyPair ?: crypto.generateKeyPair(this.keyPairType)
 
         val card = if (previousCardId != null) {
             cardManager.publishCard(virgilKeyPair.privateKey,
                                     virgilKeyPair.publicKey,
                                     this.identity,
-                                    previousCardId)
+                                    previousCardId,
+                                    additionalData)
         } else {
             cardManager.publishCard(virgilKeyPair.privateKey,
                                     virgilKeyPair.publicKey,
-                                    this.identity)
+                                    this.identity,
+                                    additionalData)
         }
 
         val privateKeyData = crypto.exportPrivateKey(virgilKeyPair.privateKey).toData()
 
         localKeyStorage.store(privateKeyData)
         privateKeyChanged(PrivateKeyChangedParams(card, isNew = true))
+        return card
     }
 
     internal fun startRatchetSessionAsSender(secureChat: SecureChat,

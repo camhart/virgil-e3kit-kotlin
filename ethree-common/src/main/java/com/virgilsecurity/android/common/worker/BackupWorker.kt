@@ -45,6 +45,7 @@ import com.virgilsecurity.common.model.Completable
 import com.virgilsecurity.common.model.Data
 import com.virgilsecurity.keyknox.exception.EntryAlreadyExistsException
 import com.virgilsecurity.keyknox.exception.EntryNotFoundException
+import com.virgilsecurity.sdk.cards.Card
 import com.virgilsecurity.sdk.crypto.HashAlgorithm
 import com.virgilsecurity.sdk.crypto.VirgilCrypto
 import com.virgilsecurity.sdk.crypto.exceptions.KeyEntryAlreadyExistsException
@@ -74,7 +75,7 @@ internal class BackupWorker internal constructor(
         }
     }
 
-    internal fun restorePrivateKey(password: String): Completable = object : Completable {
+    internal fun restorePrivateKey(password: String, cardFilter: (card : Card) -> Boolean, onSuccess: (card: Card) -> Unit): Completable = object : Completable {
         override fun execute() {
             try {
                 require(password.isNotEmpty()) { "\'password\' should not be empty" }
@@ -86,13 +87,15 @@ internal class BackupWorker internal constructor(
                                           exception)
                 }
 
-                val card = lookupManager.lookupCard(this@BackupWorker.identity, false, CardFilterHelper::AcceptAccount)
+                val card = lookupManager.lookupCard(this@BackupWorker.identity, false, cardFilter)
 
                 localKeyStorage.store(entry.data.toData())
 
                 val params = EThreeCore.PrivateKeyChangedParams(card, isNew = false)
 
                 privateKeyChanged(params)
+
+                onSuccess(card)
             } catch (exception: KeyEntryAlreadyExistsException) {
                 throw EThreeException(EThreeException.Description.PRIVATE_KEY_EXISTS,
                                       exception) // FIXME add in swift or remove here

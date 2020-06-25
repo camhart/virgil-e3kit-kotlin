@@ -45,6 +45,9 @@ import com.virgilsecurity.sdk.crypto.KeyPairType
  * EThreeParams
  */
 class EThreeParams(
+
+        val keyPrefix: String,
+
         // Identity of user.
         val identity: String,
 

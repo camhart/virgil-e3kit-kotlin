@@ -44,6 +44,10 @@ import com.virgilsecurity.sdk.crypto.KeyPairType
  * EThreeParamsEnclave
  */
 data class EThreeParams(
+
+        // Added by cam to distinguish between account/device card when storing
+        val keyPrefix: String,
+
         // Identity of user.
         val identity: String,
 

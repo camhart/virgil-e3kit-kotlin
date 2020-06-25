@@ -136,6 +136,9 @@ internal class LookupManager internal constructor(
             val cards = cardStorage.searchCards(identitiesDistincted)
 
             for (card in cards) {
+                if(!cardFilter(card)) {
+                    continue
+                }
                 result[card.identity] = card
                 identitiesDistincted.remove(card.identity)
             }

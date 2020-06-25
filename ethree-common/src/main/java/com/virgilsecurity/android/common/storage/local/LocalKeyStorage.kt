@@ -47,23 +47,26 @@ import com.virgilsecurity.sdk.storage.KeyStorage
 class LocalKeyStorage internal constructor(
         internal val identity: String,
         private val keyStorage: KeyStorage,
-        internal val crypto: VirgilCrypto
+        internal val crypto: VirgilCrypto,
+        internal val keyPrefix: String
 ) {
 
-    internal fun exists() = keyStorage.exists(identity)
+    protected fun key() = "$keyPrefix.$identity"
+
+    internal fun exists() = keyStorage.exists(key())
 
     internal fun store(privateKeyData: Data) =
-            keyStorage.store(JsonKeyEntry(identity, privateKeyData.value))
+            keyStorage.store(JsonKeyEntry(key(), privateKeyData.value))
 
     internal fun retrieveKeyPair(): VirgilKeyPair = try {
-        val privateKeyData = keyStorage.load(identity)
+        val privateKeyData = keyStorage.load(key())
         crypto.importPrivateKey(privateKeyData.value)
     } catch (e: KeyEntryNotFoundException) {
         throw EThreeException(EThreeException.Description.MISSING_PRIVATE_KEY)
     }
 
     internal fun delete() = try {
-        keyStorage.delete(identity)
+        keyStorage.delete(key())
     } catch (exception: KeyEntryNotFoundException) {
         throw EThreeException(EThreeException.Description.MISSING_PRIVATE_KEY)
     }

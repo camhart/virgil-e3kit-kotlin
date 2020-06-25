@@ -53,11 +53,11 @@ internal class AuthEncryptWorker internal constructor(
         private val crypto: VirgilCrypto
 ) {
 
-    internal fun authEncrypt(data: Data, user: Card): Data =
-            authEncrypt(data, FindUsersResult(mapOf(user.identity to user)))
+    internal fun authEncrypt(data: Data, user: Card, includeSelf: Boolean): Data =
+            authEncrypt(data, FindUsersResult(mapOf(user.identity to user)), includeSelf)
 
-    internal fun authEncrypt(text: String, user: Card): String =
-            authEncrypt(text, FindUsersResult(mapOf(user.identity to user)))
+    internal fun authEncrypt(text: String, user: Card, includeSelf: Boolean): String =
+            authEncrypt(text, FindUsersResult(mapOf(user.identity to user)), includeSelf)
 
     @JvmOverloads internal fun authDecrypt(data: Data, user: Card? = null): Data =
             decryptInternal(data, user?.publicKey)
@@ -104,7 +104,7 @@ internal class AuthEncryptWorker internal constructor(
         return String(decryptedData.value, StandardCharsets.UTF_8)
     }
 
-    @JvmOverloads internal fun authEncrypt(text: String, users: FindUsersResult? = null): String {
+    @JvmOverloads internal fun authEncrypt(text: String, users: FindUsersResult? = null, includeSelf: Boolean): String {
         require(text.isNotEmpty()) { "\'text\' should not be empty" }
 
         if (users != null) require(users.isNotEmpty()) { "Passed empty FindUsersResult" }
@@ -114,17 +114,20 @@ internal class AuthEncryptWorker internal constructor(
         } catch (exception: IllegalArgumentException) {
             throw EThreeException(EThreeException.Description.STR_TO_DATA_FAILED, exception)
         }
-        return authEncrypt(data, users).toBase64String()
+        return authEncrypt(data, users, includeSelf).toBase64String()
     }
 
-    @JvmOverloads internal fun authEncrypt(data: Data, users: FindUsersResult? = null): Data =
-            encryptInternal(data, users?.map { it.value.publicKey })
+    @JvmOverloads internal fun authEncrypt(data: Data, users: FindUsersResult? = null, includeSelf: Boolean): Data =
+            encryptInternal(data, users?.map { it.value.publicKey }, includeSelf)
 
-    private fun encryptInternal(data: Data, publicKeys: List<VirgilPublicKey>?): Data {
+    private fun encryptInternal(data: Data, publicKeys: List<VirgilPublicKey>?, includeSelf: Boolean): Data {
         require(data.value.isNotEmpty()) { "\'data\' should not be empty." }
 
         val selfKeyPair = localKeyStorage.retrieveKeyPair()
-        val pubKeys = mutableListOf(selfKeyPair.publicKey)
+        val pubKeys = mutableListOf<VirgilPublicKey>()
+        if(includeSelf) {
+            pubKeys += selfKeyPair.publicKey
+        }
 
         if (publicKeys != null) {
             if (publicKeys.isEmpty())

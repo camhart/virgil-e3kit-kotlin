@@ -36,6 +36,7 @@ package com.virgilsecurity.android.common.worker
 import com.virgilsecurity.android.common.exception.EThreeException
 import com.virgilsecurity.android.common.storage.local.LocalKeyStorage
 import com.virgilsecurity.common.model.Completable
+import com.virgilsecurity.sdk.cards.Card
 import com.virgilsecurity.sdk.cards.CardManager
 import com.virgilsecurity.sdk.crypto.VirgilKeyPair
 
@@ -46,25 +47,34 @@ internal class AuthorizationWorker internal constructor(
         private val cardManager: CardManager,
         private val localKeyStorage: LocalKeyStorage,
         private val identity: String,
-        private val publishCardThenSaveLocal: (VirgilKeyPair?, String?) -> Unit,
+        private val publishCardThenSaveLocal: (VirgilKeyPair?, String?, Map<String, String>?) -> Card,
         private val privateKeyDeleted: () -> Unit
 ) {
 
     @Synchronized
     @JvmOverloads
-    internal fun register(keyPair: VirgilKeyPair? = null) = object : Completable {
+    internal fun register(keyPair: VirgilKeyPair? = null, cardFilter: (card: Card) -> Boolean, additionalData: Map<String, String>, onSuccess: (card: Card) -> Unit) = object : Completable {
         override fun execute() {
             if (localKeyStorage.exists())
                 throw EThreeException(EThreeException.Description.PRIVATE_KEY_EXISTS)
 
-            val cards = cardManager.searchCards(this@AuthorizationWorker.identity)
+            val tempCards = cardManager.searchCards(this@AuthorizationWorker.identity)
+
+            val cards = arrayListOf<Card>();
+            for(card in tempCards) {
+                if(cardFilter(card)) {
+                    cards.add(card)
+                }
+            }
+
             if (cards.isNotEmpty()) {
                 throw EThreeException(
                     EThreeException.Description.USER_IS_ALREADY_REGISTERED
                 )
             }
 
-            publishCardThenSaveLocal(keyPair, null)
+            val card = publishCardThenSaveLocal(keyPair, null, additionalData)
+            onSuccess(card)
         }
     }
 
@@ -80,16 +90,18 @@ internal class AuthorizationWorker internal constructor(
         }
     }
 
-    @Synchronized internal fun rotatePrivateKey() = object : Completable {
+    @Synchronized internal fun rotatePrivateKey(additionalData: Map<String, String>, cardFilter: (card: Card) -> Boolean, onSuccess: (card: Card) -> Unit) = object : Completable {
         override fun execute() {
             if (localKeyStorage.exists())
                 throw EThreeException(EThreeException.Description.PRIVATE_KEY_EXISTS)
 
-            val cards = cardManager.searchCards(this@AuthorizationWorker.identity)
+            val tempCards = cardManager.searchCards(this@AuthorizationWorker.identity)
+            val cards = tempCards.filter(cardFilter);
             val card = cards.firstOrNull()
                        ?: throw EThreeException(EThreeException.Description.USER_IS_NOT_REGISTERED)
 
-            publishCardThenSaveLocal(null, card.identifier)
+            val publishedCard = publishCardThenSaveLocal(null, card.identifier, additionalData)
+            onSuccess(publishedCard)
         }
     }
 
