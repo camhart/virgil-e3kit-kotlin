@@ -38,12 +38,14 @@ import com.virgilsecurity.android.common.model.FindUsersResult
 import com.virgilsecurity.android.common.storage.local.LocalKeyStorage
 import com.virgilsecurity.common.extension.toData
 import com.virgilsecurity.common.model.Data
+import com.virgilsecurity.keyknox.utils.unwrapCompanionClass
 import com.virgilsecurity.sdk.cards.Card
 import com.virgilsecurity.sdk.crypto.VirgilCrypto
 import com.virgilsecurity.sdk.crypto.VirgilPublicKey
 import com.virgilsecurity.sdk.crypto.exceptions.VerificationException
 import java.nio.charset.StandardCharsets
 import java.util.*
+import java.util.logging.Logger
 
 /**
  * AuthEncryptWorker
@@ -63,6 +65,7 @@ internal class AuthEncryptWorker internal constructor(
             decryptInternal(data, user?.publicKey)
 
     internal fun authDecrypt(data: Data, user: Card, date: Date): Data {
+        logger.fine("Auth decrypt data with card ${user.identifier}")
         var card = user
 
         while (card.previousCard != null) {
@@ -77,8 +80,7 @@ internal class AuthEncryptWorker internal constructor(
     }
 
     @JvmOverloads internal fun authDecrypt(text: String, user: Card? = null): String {
-        require(text.isNotEmpty()) { "\'text\' should not be empty" }
-
+        logger.fine("Auth decrypt text with card ${user?.identifier}")
         val data = try {
             Data.fromBase64String(text)
         } catch (exception: IllegalArgumentException) {
@@ -91,8 +93,7 @@ internal class AuthEncryptWorker internal constructor(
     }
 
     internal fun authDecrypt(text: String, user: Card, date: Date): String {
-        require(text.isNotEmpty()) { "\'text\' should not be empty" }
-
+        logger.fine("Auth decrypt text with card ${user.identifier}")
         val data = try {
             Data.fromBase64String(text)
         } catch (exception: IllegalArgumentException) {
@@ -105,8 +106,7 @@ internal class AuthEncryptWorker internal constructor(
     }
 
     @JvmOverloads internal fun authEncrypt(text: String, users: FindUsersResult? = null): String {
-        require(text.isNotEmpty()) { "\'text\' should not be empty" }
-
+        logger.fine("Auth encrypt text")
         if (users != null) require(users.isNotEmpty()) { "Passed empty FindUsersResult" }
 
         val data = try {
@@ -121,8 +121,6 @@ internal class AuthEncryptWorker internal constructor(
             encryptInternal(data, users?.map { it.value.publicKey })
 
     private fun encryptInternal(data: Data, publicKeys: List<VirgilPublicKey>?): Data {
-        require(data.value.isNotEmpty()) { "\'data\' should not be empty." }
-
         val selfKeyPair = localKeyStorage.retrieveKeyPair()
         val pubKeys = mutableListOf(selfKeyPair.publicKey)
 
@@ -137,8 +135,6 @@ internal class AuthEncryptWorker internal constructor(
     }
 
     private fun decryptInternal(data: Data, publicKey: VirgilPublicKey?): Data {
-        require(data.value.isNotEmpty()) { "\'data\' should not be empty." }
-
         val selfKeyPair = localKeyStorage.retrieveKeyPair()
         val pubKey = publicKey ?: selfKeyPair.publicKey
 
@@ -152,5 +148,9 @@ internal class AuthEncryptWorker internal constructor(
                 else -> throw exception
             }
         }
+    }
+
+    companion object {
+        private val logger = Logger.getLogger(unwrapCompanionClass(this::class.java).name)
     }
 }
